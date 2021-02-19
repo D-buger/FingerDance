@@ -5,13 +5,23 @@ using UnityEngine.SceneManagement;
 
 public class NoteManager : MonoBehaviour
 {
-    public GameObject clearP;
-    public GameObject failP;
-
-    bool end = false;
+    [SerializeField]
+    string csvName;
 
     [SerializeField]
+    private GameObject clearP;
+    [SerializeField]
+    private GameObject failP;
+
+    private bool end = false;
+    
+    [SerializeField]
     GameObject[] notes = new GameObject[3];
+
+    Dictionary<GameObject, List<GameObject>> noteList;
+
+    [SerializeField]
+    private int poolingAmount;
 
     [SerializeField]
     public Transform trans;
@@ -23,33 +33,44 @@ public class NoteManager : MonoBehaviour
 
     float x = 0, y = 0;
 
-
-    float enemyR = 0;
-    float playerR = 0;
+    [SerializeField]
+    float enemyR = 3;
+    [SerializeField]
+    float playerR = 2;
+    [SerializeField]
     Vector3 v3MovePos = Vector3.zero;
 
     float check = 0;
 
     private void Awake()
     {
-        data = CSVReader.Read("plane");
+        noteList = new Dictionary<GameObject, List<GameObject>>();
+        data = CSVReader.Read(csvName);
+        for(int i = 0; i < notes.Length; i++)
+        {
+            InstantiatePrefabs(notes[i]);
+        }
     }
 
-    private void Start()
+    private void InstantiatePrefabs(GameObject prefab)
     {
-        v3MovePos = GameManager.instance.v3MovePos;
-        enemyR = GameManager.instance.enemyR;
-        playerR = GameManager.instance.playerR;
+        List<GameObject> list = new List<GameObject>();
+        GameObject obj;
+
+        for (int i = 0; i < poolingAmount; i++)
+        {
+            obj = Instantiate(prefab, prefab.transform);
+            obj.SetActive(false);
+            list.Add(obj);
+        }
+
+        noteList.Add(prefab, list);
     }
 
     private void Update()
     {
         t += Time.deltaTime;
-        //Debug.Log(t);
-        //Debug.Log(seq);
-        //Debug.Log((float)data[seq]["Time"] % 60);
         check = (float)data[seq]["Time"];
-        //Debug.Log(check);
         if ((float)data[seq]["Time"] < t && (int)data[seq]["Num"] == -1)
         {
             end = true;
@@ -63,15 +84,7 @@ public class NoteManager : MonoBehaviour
             madeNotes(seq);
             seq++;
         }
-
     }
-
-    //public void del()
-    //{
-    //    failP.SetActive(true);
-    //    end = true;
-    //    StartCoroutine(wait());
-    //}
 
     IEnumerator wait() {
         yield return new WaitForSeconds(2);
@@ -80,22 +93,34 @@ public class NoteManager : MonoBehaviour
         yield return null;
     }
 
+    List<GameObject> dictionaryList;
     void madeNotes(int seq)
     {
-        //Debug.Log("생성" + seq);
-        drawCir(seq);
-        //Debug.Log("시작"+trans.position);
-        Instantiate(notes[(int)data[seq]["Num"]], trans.position, Quaternion.identity);
-        //Debug.Log("끝" + trans.position);
+        dictionaryList = new List<GameObject>();
+        GameObject obj = null;
+
+        if (noteList.ContainsKey(notes[seq]))
+        {
+            noteList.TryGetValue(notes[seq], out dictionaryList);
+            if (dictionaryList.Count != 0)
+            {
+                obj = dictionaryList[0];
+                obj.transform.position = drawCir(seq);
+                //회전구현해야함
+                obj.SetActive(true);
+
+
+                dictionaryList.Remove(obj);
+            }
+        }
     }
 
     void Random(int min, int max)
     {
     }
 
-    void drawCir(int seq)
+    Vector2 drawCir(int seq)
     {
-        
         float fRadian = (float)data[seq]["Rotate"];
         //추가 시킨 각도의 Radian을 구한다
         float deRad = fRadian * Mathf.Deg2Rad;
@@ -118,6 +143,7 @@ public class NoteManager : MonoBehaviour
 
         //이동
         trans.position = new Vector3(x, y, 0) + v3MovePos;
-        //Debug.Log(trans.position);
+
+        return trans.position;
     }
 }
